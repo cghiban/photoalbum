@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" integrity="sha384-HSMxcRTRxnN+Bdg0JdbxYKrThecOKuH5zCYotlSAcp1+c8xmyTe9GYg1l9a69psu" crossorigin="anonymous">
+</head>
+<body>
+    <div>
+        <a href="/albums">albums</a>
+    </div>
+    <div>
+        <a href="/photos">photos</a>
+        <a href="/photos/add">+</a>
+    </div>
+
+    <div class="row">
+        {{ range .}}
+        <div class="col-xs-6 col-md-3">
+            <a href="#" class="thumbnail">
+                <img src="/static/{{.Thumb}}" alt="{{.Note}}" class="img-responsive thumb">
+            </a>
+            <div class="caption">
+                {{.ID}}.{{ .Note}}
+            </div>
+        </div>
+        {{ end }}
+    </div>
+</body>
+</html>

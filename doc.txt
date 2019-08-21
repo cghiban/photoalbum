@@ -1,0 +1,64 @@
+
+- simple upload interface (multiple files allowd)
+
+- login for ading/editing data
+
+Schema
+
+Photo
+ id
+ filename
+ filepath
+ note
+ added_on
+ public
+
+Album
+ id
+ name
+ note
+ added_on
+ public
+
+AlbumImages
+ photo_id
+ album_id
+ added_on
+
+DROP TABLE IF EXISTS photo;
+CREATE TABLE photo(
+    id integer primary key autoincrement,
+    filename text not null,
+    filepath text not null,
+    note text not null default '',
+    added_on timestamp not null default current_timestamp,
+    public boolean not null default false 
+);
+
+-- insert into photo (filename, filepath, note)  values ("x", "y", ""), ('a', 'b', '');
+
+DROP TABLE IF EXISTS album;
+CREATE TABLE album (
+    id integer primary key autoincrement,
+    name text not null unique,
+    note text not null default '',
+    added_on timestamp not null default current_timestamp,
+    public boolean not null default false 
+);
+
+--insert into album (name, note)  values ("c", "y"), ('a', '');
+
+DROP TABLE IF EXISTS album_photo;
+CREATE TABLE album_photo (
+    album_id integer not null,
+    photo_id integer not null,
+    note text not null default '',
+    added_on timestamp not null default current_timestamp,
+    FOREIGN KEY (photo_id) REFERENCES photo(id),
+    FOREIGN KEY (album_id) REFERENCES album(id),
+    PRIMARY KEY (album_id, photo_id)
+);
+
+insert into album_photo (album_id, photo_id, note) values (1, 1, "1st upload");
+insert into album_photo (album_id, photo_id, note) values (1, 2, "2nd upload");
+

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" integrity="sha384-HSMxcRTRxnN+Bdg0JdbxYKrThecOKuH5zCYotlSAcp1+c8xmyTe9GYg1l9a69psu" crossorigin="anonymous">
+</head>
+<body>
+    <div>
+        <a href="/albums">albums</a>
+    </div>
+    <div>
+        <a href="/photos">photos</a>
+        <a href="/photos/add">+</a>
+    </div>
+    {{ if . }}
+	<p>{{ . }}</p>
+    {{ end }}
+    <p>
+        <form method="post" action="/photos/add" enctype="multipart/form-data">
+        <div>
+            <label>Upload</label><input name="photos" type="file" multiple/>
+        </div>
+        <label>Note</label><input name="note" type="text" value="" />
+        <input type="submit" value="submit" />
+        </form>
+    </p>
+</body>
+</html>

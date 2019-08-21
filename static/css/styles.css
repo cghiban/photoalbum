@@ -1,0 +1,48 @@
+body {
+
+    font-family: 'Raleway', sans-serif;
+    line-height: 1.5;
+    margin: 50px 0 0 0;
+    padding: 0;
+    color: #333;
+
+}
+
+.boxphoto {
+    border: 1px solid #ddd;
+    padding: 10px 20px;
+    margin-bottom: 20px;
+    background-color: rgba(255, 255, 255, 0.5);
+}
+
+.boxphoto .item-img {
+    min-height: 150px;
+}
+.item-img {
+    display: block;
+    margin: 1px auto;
+    width: 100%;
+    border-radius: 4px;
+    padding: 5px;
+    background-color: rgba(255, 255, 255, 0.5);
+}
+
+.text-height-project {
+    height: 200px;
+    overflow-y: hidden;
+}
+.thumb {
+    display: block;
+    margin: auto;
+    top: 50%;
+    position: relative;
+    max-height: 140px;
+}
+.img-responsive, .thumbnail a > img, .thumbnail > img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+img {
+    border: 0px;
+}
