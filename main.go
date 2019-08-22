@@ -60,9 +60,9 @@ func listPhotos(w http.ResponseWriter, r *http.Request) {
 			thumb,
 		}
 	}
-	t := templates.Lookup("list_photos.tmpl")
+	t := templates.Lookup("list_photos.gohtml")
 	log.Println(t.Name())
-	t.ExecuteTemplate(w, "list_photos.tmpl", pageData)
+	t.ExecuteTemplate(w, "list_photos.gohtml", pageData)
 }
 
 func addPhotos(w http.ResponseWriter, r *http.Request) {
@@ -108,9 +108,9 @@ func addPhotos(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Println("method: ", r.Method)
-	t := templates.Lookup("add_photo.tmpl")
+	t := templates.Lookup("add_photo.gohtml")
 	log.Println(t.Name())
-	t.ExecuteTemplate(w, "add_photo.tmpl", msg)
+	t.ExecuteTemplate(w, "add_photo.gohtml", msg)
 }
 
 func _uuid() string {
@@ -203,6 +203,10 @@ func processUploadedFile(fh *multipart.FileHeader, userNote string) (model.Photo
 	return photo, errors.New("just testing")
 }
 
+func faviconHandler(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "static/favicon.ico")
+}
+
 func stringInSlice(a string, list []string) bool {
 	for _, b := range list {
 		if b == a {
@@ -235,7 +239,7 @@ func init() {
 	for _, file := range files {
 		log.Printf(" + found file %s", file.Name())
 		filename := file.Name()
-		if strings.HasSuffix(filename, ".tmpl") {
+		if strings.HasSuffix(filename, ".gohtml") {
 			allFiles = append(allFiles, tmplDir+"/"+filename)
 		}
 	}
@@ -243,27 +247,6 @@ func init() {
 }
 
 func main() {
-
-	/*photo := model.Photo{
-		Filename: "vv",
-		Filepath: "/tmp/vv",
-		Note:     "Note"}
-
-	items := []model.Photo{photo}
-
-		log.Printf("got photo: %v\n", photo)
-		dbh := db.InitDB(dbpath)
-		defer dbh.Close()
-
-		db.StorePhotos(dbh, items)
-		// if err {
-		// 	log.Panicln("got error: ", err)
-		// }
-		log.Printf("got db: %T\n", dbh)
-		allPhotos := db.RetrievePhotos(dbh)
-		for _, p := range allPhotos {
-			log.Println(p)
-		}*/
 
 	host := os.Getenv("HOST")
 	if host == "" {
@@ -280,7 +263,7 @@ func main() {
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 	http.HandleFunc("/photos/add", xlog(addPhotos))
 	http.HandleFunc("/photos", xlog(listPhotos))
-
+	http.HandleFunc("/favicon.ico", faviconHandler)
 	http.HandleFunc("/", xlog(index))
 
 	//server.ListenAndServe()
