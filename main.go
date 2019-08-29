@@ -37,9 +37,9 @@ func xlog(h http.HandlerFunc) http.HandlerFunc {
 
 func index(w http.ResponseWriter, r *http.Request) {
 
-	t := templates.Lookup("index.tmpl")
-	log.Println(t.Name())
-	t.ExecuteTemplate(w, "index.tmpl", nil)
+	t := templates.Lookup("index.gohtml")
+	//log.Println(t.Name())
+	t.ExecuteTemplate(w, "index.gohtml", nil)
 }
 
 func listPhotos(w http.ResponseWriter, r *http.Request) {
@@ -67,15 +67,18 @@ func listPhotos(w http.ResponseWriter, r *http.Request) {
 
 func addPhotos(w http.ResponseWriter, r *http.Request) {
 
-	r.Body = http.MaxBytesReader(w, r.Body, 10<<20)
-
+	log.Println("size: ", r.Header.Get("Content-length"))
+	r.Body = http.MaxBytesReader(w, r.Body, 10<<21)
+	//log.Panicln("size: ", len(r.Body))
 	msg := ""
 	if r.Method == "POST" {
 		// Parse our multipart form, 10 << 21 specifies a maximum
 		// upload of 20 MB files.
-		if err := r.ParseMultipartForm(10 << 21); nil != err {
-			log.Println(err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		if err := r.ParseMultipartForm(10 << 10); nil != err {
+			log.Println("eroare >> ", err)
+			//http.Error(w, err.Error(), http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(fmt.Sprintf("500 - %s", err)))
 			return
 		}
 
@@ -93,18 +96,21 @@ func addPhotos(w http.ResponseWriter, r *http.Request) {
 			photo, err := processUploadedFile(files[i], userNote)
 			log.Println(photo)
 			log.Println(err)
-			if err == nil {
+			if err != nil {
+				msg += fmt.Sprintf("\nError: %s", err.Error())
 				continue
 			}
 
 			photo.Note = strings.TrimSpace(r.FormValue("note"))
 			processedPhotos = append(processedPhotos, photo)
 		}
-		dbh := db.InitDB(dbpath)
-		defer dbh.Close()
+		if len(processedPhotos) > 0 {
+			dbh := db.InitDB(dbpath)
+			defer dbh.Close()
 
-		db.StorePhotos(dbh, processedPhotos)
-		msg += fmt.Sprintf("\nadded %d photos", len(processedPhotos))
+			db.StorePhotos(dbh, processedPhotos)
+			msg += fmt.Sprintf("\nadded %d photos", len(processedPhotos))
+		}
 	}
 
 	log.Println("method: ", r.Method)
@@ -143,6 +149,7 @@ func processUploadedFile(fh *multipart.FileHeader, userNote string) (model.Photo
 		log.Println("Mime Type ok")
 	} else {
 		log.Println("Mime Type NOT ok: ", mimeType)
+		return model.Photo{}, fmt.Errorf("Uploaded file is not JPEG (%s)", mimeType)
 	}
 
 	uuidFilename := _uuid()
