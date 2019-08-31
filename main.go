@@ -24,8 +24,12 @@ import (
 const dbpath = "db.db"
 
 var uploadDir string
-
 var templates *template.Template
+
+var dbUsers = map[string]model.User{
+	"cornel": {ID: 1, UserName: "admin", Password: "admin"},
+}                                    // username, user
+var dbSessions = map[string]string{} // session ID, username
 
 func xlog(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -36,13 +40,84 @@ func xlog(h http.HandlerFunc) http.HandlerFunc {
 }
 
 func index(w http.ResponseWriter, r *http.Request) {
+	u := getUser(w, r)
+	log.Println("u:", u)
 
+	pageData := struct {
+		User         model.User
+		ShowLoginBox bool
+	}{}
+	if u.ID != 0 {
+		pageData.User = u
+	} else {
+		pageData.ShowLoginBox = true
+	}
 	t := templates.Lookup("index.gohtml")
 	//log.Println(t.Name())
-	t.ExecuteTemplate(w, "index.gohtml", nil)
+	log.Println("data =", pageData)
+	t.ExecuteTemplate(w, "index.gohtml", pageData)
+}
+
+func login(w http.ResponseWriter, r *http.Request) {
+	//u := getUser(w, r)
+	//log.Println(r.Method)
+	if r.Method == "POST" {
+		err := r.ParseForm()
+		if err != nil {
+			log.Println(err)
+		}
+		un := strings.TrimSpace(r.FormValue("username"))
+		p := strings.TrimSpace(r.FormValue("password"))
+		log.Println(un, " : ", p)
+		// is there such username?
+		u, ok := dbUsers[un]
+		log.Println(ok, u)
+		if !ok {
+			http.Error(w, "Username and/or password do not match", http.StatusForbidden)
+			return
+		}
+		if p != u.Password {
+			http.Error(w, "Username and/or password do not match", http.StatusForbidden)
+			return
+		}
+
+		// create session
+		c := &http.Cookie{
+			Name:     "session",
+			Value:    _uuid(),
+			HttpOnly: true,
+		}
+		http.SetCookie(w, c)
+		dbSessions[c.Value] = un
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func logout(w http.ResponseWriter, r *http.Request) {
+	if !alreadyLoggedIn(r) {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+	c, _ := r.Cookie("session")
+	// delete the session
+	delete(dbSessions, c.Value)
+	// remove the cookie
+	c = &http.Cookie{
+		Name:     "session",
+		Value:    "",
+		MaxAge:   -1,
+		HttpOnly: true,
+	}
+	http.SetCookie(w, c)
+
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
 func listPhotos(w http.ResponseWriter, r *http.Request) {
+	u := getUser(w, r)
 	dbh := db.InitDB(dbpath)
 	defer dbh.Close()
 
@@ -51,14 +126,22 @@ func listPhotos(w http.ResponseWriter, r *http.Request) {
 		model.Photo
 		Thumb string
 	}
-	pageData := make([]thumbPhoto, len(allPhotos))
+
+	thumbs := make([]thumbPhoto, len(allPhotos))
 	for i, p := range allPhotos {
 		dirname, fname := path.Split(p.Filepath)
 		thumb := dirname + "t_" + fname
-		pageData[i] = thumbPhoto{
+		thumbs[i] = thumbPhoto{
 			p,
 			thumb,
 		}
+	}
+	pageData := struct {
+		User   model.User
+		Thumbs []thumbPhoto
+	}{
+		Thumbs: thumbs,
+		User:   u,
 	}
 	t := templates.Lookup("list_photos.gohtml")
 	log.Println(t.Name())
@@ -66,6 +149,12 @@ func listPhotos(w http.ResponseWriter, r *http.Request) {
 }
 
 func addPhotos(w http.ResponseWriter, r *http.Request) {
+
+	u := getUser(w, r)
+	if !alreadyLoggedIn(r) {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
 
 	log.Println("size: ", r.Header.Get("Content-length"))
 	r.Body = http.MaxBytesReader(w, r.Body, 10<<21)
@@ -116,7 +205,11 @@ func addPhotos(w http.ResponseWriter, r *http.Request) {
 	log.Println("method: ", r.Method)
 	t := templates.Lookup("add_photo.gohtml")
 	log.Println(t.Name())
-	t.ExecuteTemplate(w, "add_photo.gohtml", msg)
+	pageData := struct {
+		User    model.User
+		Message string
+	}{u, msg}
+	t.ExecuteTemplate(w, "add_photo.gohtml", pageData)
 }
 
 func _uuid() string {
@@ -185,8 +278,7 @@ func processUploadedFile(fh *multipart.FileHeader, userNote string) (model.Photo
 		return model.Photo{}, err
 	}
 
-	// resize to width 200 using Lanczos resampling
-	// and preserve aspect ratio
+	// resize to width 200 using Bicubic resampling and preserve aspect ratio
 	m = resize.Resize(200, 0, img, resize.Bicubic)
 	//log.Println(m)
 	thumb, err := os.Create(thumbFilePath)
@@ -194,6 +286,7 @@ func processUploadedFile(fh *multipart.FileHeader, userNote string) (model.Photo
 		log.Fatal(err)
 	}
 	defer thumb.Close()
+
 	// write new image to file
 	err = jpeg.Encode(thumb, m, nil)
 	if err != nil {
@@ -207,7 +300,7 @@ func processUploadedFile(fh *multipart.FileHeader, userNote string) (model.Photo
 		Filepath: fullFilePath,
 	}
 
-	return photo, errors.New("just testing")
+	return photo, nil
 }
 
 func faviconHandler(w http.ResponseWriter, r *http.Request) {
@@ -221,6 +314,39 @@ func stringInSlice(a string, list []string) bool {
 		}
 	}
 	return false
+}
+
+func getUser(w http.ResponseWriter, req *http.Request) model.User {
+	// get cookie
+	c, err := req.Cookie("session")
+	if err != nil {
+		//sID, _ := uuid.NewV4()
+		c = &http.Cookie{
+			Name:  "session",
+			Value: _uuid(),
+			//Value: sID.String(),
+		}
+
+	}
+	//Next line may not be required, commenting it
+	// http.SetCookie(w, c)
+
+	// if the user exists already, get user
+	var u model.User
+	if un, ok := dbSessions[c.Value]; ok {
+		u = dbUsers[un]
+	}
+	return u
+}
+
+func alreadyLoggedIn(req *http.Request) bool {
+	c, err := req.Cookie("session")
+	if err != nil {
+		return false
+	}
+	un := dbSessions[c.Value]
+	_, ok := dbUsers[un]
+	return ok
 }
 
 func init() {
@@ -271,6 +397,8 @@ func main() {
 	http.HandleFunc("/photos/add", xlog(addPhotos))
 	http.HandleFunc("/photos", xlog(listPhotos))
 	http.HandleFunc("/favicon.ico", faviconHandler)
+	http.HandleFunc("/login", xlog(login))
+	http.HandleFunc("/logout", xlog(logout))
 	http.HandleFunc("/", xlog(index))
 
 	//server.ListenAndServe()

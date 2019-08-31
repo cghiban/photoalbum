@@ -20,3 +20,10 @@ type Album struct {
 	AddedOn time.Time `db:"added_on"`
 	Public  bool      `db: "public"`
 }
+
+type User struct {
+	ID       int    `db: id`
+	UserName string `db: username`
+	Password string `db: password`
+	FullName string `db: full_name`
+}

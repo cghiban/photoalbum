@@ -1,12 +1,42 @@
+
+{{define "loginbox"}}
+<div class="row">
+<form class="form-horizontal" action="/login" method="post">
+  <div class="form-group">
+    <label for="username" class="col-sm-2 control-label">Username</label>
+    <div class="col-sm-10">
+      <input type="text" class="form-control" name="username" id="username" placeholder="Username">
+    </div>
+  </div>
+  <div class="form-group">
+    <label for="password" class="col-sm-2 control-label">Password</label>
+    <div class="col-sm-10">
+      <input type="password" class="form-control" name="password" id="password" placeholder="Password">
+    </div>
+  </div>
+  <div class="form-group">
+    <div class="col-sm-offset-2 col-sm-10">
+      <button type="submit" class="btn btn-default">Sign in</button>
+    </div>
+  </div>
+</form>
+</div>
+{{end}}
+
 {{define "navbar" -}}
 <nav class="navbar navbar-default navbar-static-top">
   <div class="container">
     <ul class="nav navbar-nav">
       <li><a href="/albums">albums</a></li>
       <li><a href="/photos">photos</a></li>
+    {{ if .UserName}}
       <li><a href="/photos/add">add photos</a></li>
+      <li><a href="/logout">logout</a></li>
+    {{ end }}
     </ul>
   </div>
 </nav>
-</div>
 {{- end }}
+
+
+
